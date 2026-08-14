@@ -5,6 +5,11 @@ RUN npm install
 COPY . .
 RUN npm run build
 
+# 1. Catch the variable from Cloud Build's --build-arg
+ARG VITE_BACKEND_URL
+# 2. Make it available as an environment variable for the build command
+ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
+
 # Stage 2: Serve the application using Nginx
 FROM nginx:alpine
 RUN rm /etc/nginx/conf.d/default.conf
