@@ -21,6 +21,7 @@ export default function Login() {
                 headers: {
                     'Content-Type': 'application/json'
                 },
+                credentials:'include',
                 body: JSON.stringify({ username: username, password: password }),
             })
 
@@ -44,7 +45,7 @@ export default function Login() {
                 path: '/',
                 maxAge: 3600,
                 secure: true,
-                sameSite: 'lax'
+                sameSite: 'none'
             });
             setErrorMsg("")
             setUsername("")

@@ -20,7 +20,9 @@ export default function Dashboard() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? ""
     const fetchFiles = async () => {
         try {
-            const response = await fetch(`${BACKEND_URL}/files`)
+            const response = await fetch(`${BACKEND_URL}/files`,{
+                credentials:'include',
+            })
             if (!response.ok) {
                 throw new Error('Failed to fetch data')
             }
