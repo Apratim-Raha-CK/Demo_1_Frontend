@@ -1,14 +1,15 @@
 FROM node:22-alpine AS build
 WORKDIR /app
+
+# 1. Catch the variable from Cloud Build's --build-arg
+ARG _VITE_BACKEND_URL
+# 2. Make it available as an environment variable for the build command
+ENV VITE_BACKEND_URL=$_VITE_BACKEND_URL
+
 COPY package*.json ./
 RUN npm install
 COPY . .
 RUN npm run build
-
-# 1. Catch the variable from Cloud Build's --build-arg
-ARG VITE_BACKEND_URL
-# 2. Make it available as an environment variable for the build command
-ENV VITE_BACKEND_URL=$_VITE_BACKEND_URL
 
 # Stage 2: Serve the application using Nginx
 FROM nginx:alpine
