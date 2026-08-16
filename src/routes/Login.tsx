@@ -54,12 +54,13 @@ export default function Login() {
         return;
       }
 
-      // Store cookie session
-      cookies.set("user_data", userData, {
+      const isSecure = window.location.protocol === "https:";
+
+      cookies.set("user_data", JSON.stringify(userData || {}), {
         path: "/",
         maxAge: 3600,
-        secure: true,
-        sameSite: "none",
+        secure: isSecure,
+        sameSite: isSecure ? "none" : "lax",
       });
 
       setSuccessMsg(data?.message || "Success! Redirecting to workspace...");
