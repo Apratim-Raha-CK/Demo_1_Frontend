@@ -68,31 +68,99 @@ export default function FileUpload({ open, setOpen, fetchFiles }: FileUploadProp
     setErrorMsg("");
     setSuccessMsg("");
 
-    const formData = new FormData();
-    formData.append("uploaded_file", uploadedFile);
-    formData.append("project", project);
-
     try {
-      const response = await fetch(`${BACKEND_URL}/upload-file`, {
+      // Step 1: Request signed upload URL from backend
+      const genResponse = await fetch(`${BACKEND_URL}/generate-upload-url`, {
         method: "POST",
-        body: formData,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileName: uploadedFile.name,
+          contentType: uploadedFile.type || "application/octet-stream",
+          project: project,
+        }),
         credentials: "include",
       });
 
-      if (!response.ok) {
-        setErrorMsg("Error occurred while uploading the file.");
+      if (!genResponse.ok) {
+        let errMsg = "Error generating upload URL.";
+        try {
+          const errData = await genResponse.json();
+          if (errData && errData.message) {
+            errMsg = errData.message;
+          }
+        } catch {
+          // ignore parsing error
+        }
+        setErrorMsg(errMsg);
         setIsUploading(false);
         return;
       }
 
-      const data = await response.json();
-      if (!data || data?.status !== "success") {
-        setErrorMsg(data?.message || "Error occurred while uploading the file.");
+      const genData = await genResponse.json();
+      if (!genData || genData.status !== "success" || !genData.data) {
+        setErrorMsg(genData?.message || "Failed to generate upload URL.");
         setIsUploading(false);
         return;
       }
 
-      setSuccessMsg(data?.message || "File uploaded successfully!");
+      const { uploadUrl, uniqueName } = genData.data;
+
+      // Step 2: Upload file directly to GCS signed URL (or local fallback)
+      const uploadResponse = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": uploadedFile.type || "application/octet-stream",
+        },
+        body: uploadedFile,
+      });
+
+      if (!uploadResponse.ok) {
+        setErrorMsg("Failed to upload file to the destination storage.");
+        setIsUploading(false);
+        return;
+      }
+
+      // Step 3: Register the uploaded file metadata in backend database
+      const regResponse = await fetch(`${BACKEND_URL}/register-file`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileName: uploadedFile.name,
+          uniqueName: uniqueName,
+          project: project,
+          fileType: uploadedFile.type || "unknown",
+          fileSize: uploadedFile.size,
+        }),
+        credentials: "include",
+      });
+
+      if (!regResponse.ok) {
+        let errMsg = "Failed to register uploaded file in database.";
+        try {
+          const regData = await regResponse.json();
+          if (regData && regData.message) {
+            errMsg = regData.message;
+          }
+        } catch {
+          // ignore parsing error
+        }
+        setErrorMsg(errMsg);
+        setIsUploading(false);
+        return;
+      }
+
+      const regData = await regResponse.json();
+      if (!regData || regData.status !== "success") {
+        setErrorMsg(regData?.message || "Failed to register file.");
+        setIsUploading(false);
+        return;
+      }
+
+      setSuccessMsg("File uploaded and registered successfully!");
       setTimeout(() => {
         setUploadedFile(null);
         setErrorMsg("");
